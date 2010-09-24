@@ -1,0 +1,160 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xs:schema
+  attributeFormDefault="unqualified" elementFormDefault="qualified"
+  xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:simpleType name="actionType">
+    <!-- HACK this must match the content of ServerDeploy.ps1 -->
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="SCRIPT_TEST"/>
+      <xs:enumeration value="BTDF"/>
+      <xs:enumeration value="MSI_PS"/>
+      <xs:enumeration value="SQL"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="executeOrderType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="FarmInitialize"/>
+      <xs:enumeration value="ServerInitialize"/>
+      <xs:enumeration value="ServerFinalize"/>
+      <xs:enumeration value="FarmFinalize"/>
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:element name="environments">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="environment" minOccurs="1" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="source">
+                <xs:complexType>
+                  <xs:attribute name="drop" type="xs:string" use="required" />
+                  <xs:attribute name="log" type="xs:string" use="required" />
+                  <xs:attribute name="structure" type="xs:string" use="optional" />
+                  <xs:attribute name="settingsFile" type="xs:string" use="optional" />
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="server" minOccurs="1" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence minOccurs="1" maxOccurs="unbounded">
+                    <xs:element name="role">
+                      <xs:complexType>
+                        <xs:attribute name="name" type="xs:string" use="required" />
+                        <xs:attribute name="deployToDB" type="xs:boolean" use="optional" default="false" />
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                  <xs:attribute name="name" type="xs:string" use="required" />
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+            <xs:attribute name="name" type="xs:string" use="required" />
+            <xs:attribute name="category" type="xs:string" use="required" />
+          </xs:complexType>
+          <xs:unique name="unique_server">
+            <xs:selector xpath="server" />
+            <xs:field xpath="@name" />
+          </xs:unique>
+          <xs:keyref name="environment_categories" refer="validCategories">
+            <xs:selector xpath="."/>
+            <xs:field xpath="@category"/>
+          </xs:keyref>
+          <xs:keyref name="server_roles" refer="validRoles">
+            <xs:selector xpath="server/role"/>
+            <xs:field xpath="@name"/>
+          </xs:keyref>
+        </xs:element>
+        <xs:element name="environmentCategories" minOccurs="1" maxOccurs="1">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="category" minOccurs="1" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="execute" minOccurs="0" maxOccurs="unbounded">
+                      <xs:complexType>
+                        <xs:attribute name="name" type="xs:string" use="required" />
+                        <xs:attribute name="order" type="executeOrderType" use="required" />
+                        <xs:attribute name="roleRequired" type="xs:string" use="optional" />
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                  <xs:attribute name="name" type="xs:string" use="required" />
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+          <xs:unique name="unique_category">
+            <xs:selector xpath="category" />
+            <xs:field xpath="@name" />
+          </xs:unique>
+        </xs:element>
+        <xs:element name="roles" minOccurs="1" maxOccurs="1">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="role" minOccurs="1" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="host" minOccurs="0" maxOccurs="unbounded">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="handles" minOccurs="0" maxOccurs="unbounded" >
+                            <xs:complexType>
+                              <xs:attribute name="receive" type="xs:boolean" use="required" />
+                              <xs:attribute name="send" type="xs:boolean" use="required" />
+                              <xs:attribute name="adapter" type="xs:string" use="required" />
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                        <xs:attribute name="name" type="xs:string" use="required" />
+                        <xs:attribute name="is32bit" type="xs:boolean" use="optional" default="false" />
+                        <xs:attribute name="isTracking" type="xs:boolean" use="optional" default="false" />
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="package" minOccurs="0" maxOccurs="unbounded">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="type" type="actionType" minOccurs="1" maxOccurs="1" />
+                        </xs:sequence>
+                        <xs:attribute name="name" type="xs:string" use="required" />
+                        <xs:attribute name="version" type="xs:string" use="required" />
+                        <xs:attribute name="file" type="xs:string" use="required" />
+                        <xs:attribute name="fullName" type="xs:string" use="optional" />
+                        <xs:attribute name="productId" type="xs:string" use="optional" />
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                  <xs:attribute name="name" type="xs:string" use="required" />
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="configuration" minOccurs="0" maxOccurs="1">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:any minOccurs="0" maxOccurs="unbounded" processContents="skip"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+	  <!-- WARNING schema version! -->
+	  <xs:attribute name="version" type="xs:string" use="required" fixed="2.0" />
+    </xs:complexType>
+
+    <xs:key name="validCategories">
+      <xs:selector xpath="environmentCategories/category"/>
+      <xs:field xpath="@name"/>
+    </xs:key>
+
+    <xs:key name="validRoles">
+      <xs:selector xpath="roles/role"/>
+      <xs:field xpath="@name"/>
+    </xs:key>
+
+    <xs:keyref name="category_roles" refer="validRoles">
+      <xs:selector xpath="environmentCategories/category/execute"/>
+      <xs:field xpath="@roleRequired"/>
+    </xs:keyref>
+
+  </xs:element>
+</xs:schema>
