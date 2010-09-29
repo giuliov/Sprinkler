@@ -73,7 +73,7 @@ function Read-EnvironmentTarget()
 
 $task = Read-HostMenuChoice "Select the task:" @(
      @{ key=0; prompt="<exit this script>"; value=[ExitScriptType] }
-    ,@{ key=1; prompt="Complete installation adding the missing bits"; value={
+    ,@{ key=1; prompt="Add missing bits"; value={
         Join-Path $thisScriptDir -ChildPath "_InstallMissingBits.ps1"
         }}
     ,@{ key=2; prompt="Create the BizTalk host instances"; value={
@@ -120,7 +120,7 @@ $task = Read-HostMenuChoice "Select the task:" @(
         $environment = Read-EnvironmentTarget
         return "$scriptToLaunch '$($environment.File)' $($environment.Target) -Mode UPGRADE -CustomDeployParameters ';IncludeBAM=false' -CustomUndeployParameters ';SkipBamUndeploy=true'"
         }}
-    ,@{ key=7; prompt="Full Re-deploy (after undeploying) to the most recent build (BAM included)"; value={
+    ,@{ key=7; prompt="Undeploy followed by Full Deploy to the most recent build (BAM included)"; value={
         $scriptToLaunch = Join-Path $thisScriptDir -ChildPath "ServerDeploy.ps1"
         $environment = Read-EnvironmentTarget
         return "$scriptToLaunch '$($environment.File)' $($environment.Target) -Mode BOTH"
