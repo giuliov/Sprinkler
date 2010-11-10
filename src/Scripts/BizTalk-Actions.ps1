@@ -99,6 +99,18 @@ function LimitHostInstances($context)
 
 
 
+function LimitHostInstancesAndRestartServices($context)
+{
+	Write-Output "Stopping HostInstances on all servers"
+	$servers = $context.Servers
+	Stop-BizTalkHostInstances $servers
+	Write-Output "HostInstances stopped."
+	Write-Output "Starting HostInstances on first servers"
+	Start-BizTalkHostInstances $servers[0]
+	Write-Output "HostInstances started."
+}
+
+
 function UpdateDeploymentStatus($context)
 {
 	$dropURL = $context.RawConfiguration.environments.configuration.CentralMonitor.Url

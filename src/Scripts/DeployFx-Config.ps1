@@ -4,8 +4,11 @@
 function DumpContext($context, [string] $message)
 {
     Write-Verbose $message
+	$message
     $context | Get-Member -MemberType Property | %{
-        Write-Verbose "$($_.Name) = $( $context.($_.Name) )"
+		$value = "  $($_.Name) = $( $context.($_.Name) )"
+        Write-Verbose $value
+        $value
     }
 }
 
@@ -92,6 +95,7 @@ function ValidateConfiguration($context)
 function CreateAndLoadContext([string] $environmentFile, [string] $ENV_SETTINGS)
 {
     $context = New-Object $DeployContextClassName
+	$context.StartTime = Get-Date
 	[xml]$environments = Get-Content $environmentFile
     $context.RawConfiguration = $environments
     $context.TargetEnvironment = $ENV_SETTINGS
@@ -105,11 +109,23 @@ function CreateAndLoadContext([string] $environmentFile, [string] $ENV_SETTINGS)
             return $cmd.Substring(0,$cmd.Length-4)
         }
     }#for
-    
-    $context.LogFile = "$($source.log)\$($whichScript[0])-$env:COMPUTERNAME-$(Get-Date -f 'yyyyMMdd-HHmm').txt"
-    # HACK this won't work if run remotely!
+	if ($whichScript -isnot [string]) {
+		$whichScript = $whichScript[0]
+	}
+	$context.ScriptName = $whichScript
+    $startTime = $context.StartTime.ToString('yyyyMMdd-HHmm')
+	
+    $context.LogFile = "$($source.log)\$whichScript-$env:COMPUTERNAME-$startTime.txt"
+	# dump information in Log file
+	"-------------------------------" | Out-File $context.LogFile
+	"Sprinkler script $whichScript" | Out-File $context.LogFile -Append
+	"Script argument(s): $Args" | Out-File $context.LogFile -Append -Width 1024
+	"Launched by $env:USERDOMAIN\$env:USERNAME on $env:COMPUTERNAME at $($context.StartTime)" | Out-File $context.LogFile -Append -Width 1024
+	"-------------------------------" | Out-File $context.LogFile -Append
+    # BUG this won't work if run remotely!
     $context.ScriptDirectory = Split-Path -Parent $script:MyInvocation.MyCommand.Path
-    DumpContext $context "Initial Context contains:"
+	# Transcript is still not open
+    DumpContext $context "Initial Context contains:" | Out-File $context.LogFile -Append -NoClobber -Width 1024
 	return $context
 }
 
@@ -137,7 +153,7 @@ function LoadConfiguration($context)
         $deployToDB = $false
     }
     $context.DeployToDB = $deployToDB
-    $context.PollingInterval = 500 #0.5sec
+    $context.PollingInterval = 2000 # 2 sec
 
     $context.BaseDirectory = Split-Path -Parent $context.ScriptDirectory
     $context.ConfigDirectory = Join-Path $context.BaseDirectory -ChildPath "Config"

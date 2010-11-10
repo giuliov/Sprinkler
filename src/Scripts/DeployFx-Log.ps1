@@ -20,7 +20,9 @@ function LogMessage($context, $message)
 function CloseLogOnError($context)
 {
     Write-Output "*****  SCRIPT FAILED  *****"
-	LogMessage $context "Check $($context.LogFile) log content."
+	Write-Output "Last error(s):"
+	Write-Output $Error
+	Write-Host "Check $($context.LogFile) log content."
     if ($TranscriptHosts -contains $host.Name) {
         Stop-Transcript
     }

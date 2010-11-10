@@ -9,6 +9,7 @@
       <xs:enumeration value="BTDF"/>
       <xs:enumeration value="MSI_PS"/>
       <xs:enumeration value="SQL"/>
+      <xs:enumeration value="MSI"/>
     </xs:restriction>
   </xs:simpleType>
   <xs:simpleType name="executeOrderType">
@@ -75,6 +76,7 @@
                         <xs:attribute name="name" type="xs:string" use="required" />
                         <xs:attribute name="order" type="executeOrderType" use="required" />
                         <xs:attribute name="roleRequired" type="xs:string" use="optional" />
+                        <xs:attribute name="stopOnFailure" type="xs:boolean" use="optional" default="true" />
                       </xs:complexType>
                     </xs:element>
                   </xs:sequence>

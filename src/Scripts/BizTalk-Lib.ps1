@@ -164,12 +164,12 @@ function Set-BizTalkApplicationsStatus
         }
     }
 
-    $sortedNodes = $startNodes | %{ depth-first-visit $_ }
-    
+    $sortedNodes = $startNodes | %{ depth-first-visit $_ }    
     if ($sortedNodes -eq $null) {
         Write-Output "No application to change status."
         return $null
     }
+    $sortedNodes = @($sortedNodes)
 
     if ($stop) {
         $sortedNodes | foreach {

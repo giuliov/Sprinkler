@@ -1,12 +1,12 @@
 <#
 #>
 param(
-		[Parameter(Mandatory=$true)]
-		[string]
+    [Parameter(Mandatory=$true)]
+    [string]
     $environmentFile,
-		[Parameter(Mandatory=$true)]
+    [Parameter(Mandatory=$true)]
         [alias("Target")]
-		[string]
+    [string]
     $ENV_SETTINGS
 )
 ### Setup variables
@@ -24,8 +24,14 @@ function DoCore($context)
 	$tempDir = Join-Path $context.LogDirectory -ChildPath "Cfgs"
 	
 	New-Item -Type Directory -Path $tempDir -Force | Out-Null
-	& "$($context.ToolsDirectory)\XmlPreprocess.exe" /i:"$dataDir\BTSNTSvc.exe.config" /o:"$tempDir\BTSNTSvc.exe.config" /i:"$dataDir\BTSNTSvc64.exe.config" /o:"$tempDir\BTSNTSvc64.exe.config" /x:"$($context.MasterSettingsFile)" /er:4 /e:"$($context.TargetEnvironment)_settings.xml" | Write-Output
-	
+  Write-Output "'$tempDir' created"
+  
+  Write-Output "`"$($context.ToolsDirectory)\XmlPreprocess.exe`" /i:`"$dataDir\BTSNTSvc64.exe.config`" /o:`"$tempDir\BTSNTSvc64.exe.config`" /s:`"$($context.SettingsFile)`""
+  & "$($context.ToolsDirectory)\XmlPreprocess.exe" /i:"$dataDir\BTSNTSvc64.exe.config" /o:"$tempDir\BTSNTSvc64.exe.config" /s:"$($context.SettingsFile)" | Write-Output
+
+  Write-Output "`"$($context.ToolsDirectory)\XmlPreprocess.exe`" /i:`"$dataDir\BTSNTSvc.exe.config`" /o:`"$tempDir\BTSNTSvc.exe.config`" /s:`"$($context.SettingsFile)`""
+  & "$($context.ToolsDirectory)\XmlPreprocess.exe" /i:"$dataDir\BTSNTSvc.exe.config" /o:"$tempDir\BTSNTSvc.exe.config" /s:"$($context.SettingsFile)" | Write-Output
+  
 	$context.Servers | foreach {
 		$serverName = $_	
 		#HACK BTS 2009 only!

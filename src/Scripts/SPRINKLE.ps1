@@ -1,9 +1,14 @@
 #$DebugPreference = "Continue"
-$VerbosePreference = "Continue"
+#$VerbosePreference = "Continue"
+#$WarningPreference = "Continue"
 $thisScriptPath = $MyInvocation.MyCommand.Path
 $thisScriptDir = Split-Path -Parent $thisScriptPath
 Write-Debug "ThisScriptPath  = $thisScriptPath"
 Write-Debug "ThisScriptDir = $thisScriptDir"
+
+
+Write-Host "Sprinkler 0.9.2" -ForegroundColor Cyan
+Write-Host ""
 
 
 Add-Type -TypeDefinition "public class ExitScriptType {public bool Dummy; }"
@@ -59,13 +64,22 @@ function Read-EnvironmentTarget()
     [xml]$environments = Get-Content $environmentFile
     $targetEnvironments = Select-Xml -Xml $environments -XPath "/environments/environment/@name" | foreach { $_.Node.Value }
 
-    $targetMenu = @( @{ key=0; prompt="<exit this script>"; value=[ExitScriptType] } )
-    $targetEnvironments | foreach {
-        $targetMenu += @{ key=$targetMenu.Length; prompt=$_; value=$_ }
-    }
-
-    $targetEnvironment = Read-HostMenuChoice "Select the target environment:" $targetMenu
+	if ($targetEnvironments -is [string]) {
+		# no choices
+		$targetEnvironment = $targetEnvironments
+	} else {
+	    $targetMenu = @( @{ key=0; prompt="<exit this script>"; value=[ExitScriptType] } )
+	    $targetEnvironments | foreach {
+	        $targetMenu += @{ key=$targetMenu.Length; prompt=$_; value=$_ }
+	    }
+	    $targetEnvironment = Read-HostMenuChoice "Select the target environment:" $targetMenu
+	}#if
     Write-Debug "Chosen '$targetEnvironment'"
+		
+	if ($targetEnvironment -ieq 'LOCAL' -and [string]::IsNullOrEmpty($env:DevSqlName)) {
+		Write-Warning "Environment variable DevSqlName must be defined for deployment to work!"
+	}
+
     
     return @{ File = $environmentFile; Target = $targetEnvironment }
 }
@@ -102,7 +116,7 @@ $task = Read-HostMenuChoice "Select the task:" @(
             $shareFolder = ""
         }
 		#HACK change the script to read configuration!
-        $dropURL = "http://drops.example.com/"
+        $dropURL = "http://drops.dnbshas.com/"
         return "$scriptToLaunch '$destinationFolder' $dropURL $shareName $shareFolder"
         }}
     ,@{ key=4; prompt="Scratch all Applications and BRE"; value={
@@ -145,6 +159,13 @@ $task = Read-HostMenuChoice "Select the task:" @(
         $environment = Read-EnvironmentTarget
         return "$scriptToLaunch '$($environment.File)'"
         } }
+    ,@{ key='P'; prompt="Edit the settings file's password"; value={
+        $scriptToLaunch = Join-Path $thisScriptDir -ChildPath "_SetPasswordsInSettingsFile.ps1" 
+        $environment = Read-EnvironmentTarget
+        $cleanSettingsFile = Read-Host "Clean environment settings file"
+        $passwordFile = Read-Host "Password file (*.CSV)"
+        return "$scriptToLaunch '$($environment.File)' $($environment.Target) $($cleanSettingsFile) $($passwordFile)"
+        } }
     ,@{ key='R'; prompt="(Re-)deploy all the rules in the ./Data/BRE folder"; value={
         $scriptToLaunch = Join-Path $thisScriptDir -ChildPath "DeployRules.ps1" 
         $environment = Read-EnvironmentTarget
@@ -156,6 +177,7 @@ Write-Host "About to execute"
 Write-Host "  ==> $task <=="
 $yesNo = Read-Host "Run it? [Y]es,[N]o"
 if ("Y","y" -contains $yesNo) {
+    Write-Host ""
     Invoke-Expression $task
 }
 

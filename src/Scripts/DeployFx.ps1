@@ -14,6 +14,8 @@ $DeployContextSource = @"
 using System.Xml;
 public class $DeployContextClassName {
     public XmlDocument RawConfiguration;
+    public System.DateTime StartTime;
+    public string ScriptName;
     public string TargetEnvironment;
     public string LogFile;
     public string LogDirectory;
@@ -104,10 +106,14 @@ function DisplaySummaryReport($context)
 	Write-Output $context.ReportLines
     Write-Output ""
     if ($context.Succeeded) {
-    	Write-Output "Script completed on $env:COMPUTERNAME with success."
+		$msg = "Script completed on $env:COMPUTERNAME with success."
+		$msgColor = 'Green'
     } else {
-    	Write-Output "Script completed on $env:COMPUTERNAME with ERROR(S)."
+		$msg = "Script completed on $env:COMPUTERNAME with ERROR(S)."
+		$msgColor = 'Red'
     }
+	Write-Output $msg
+	Write-Host -ForegroundColor $msgColor $msg
 }
 
 ############ MAIN BODY
@@ -115,51 +121,64 @@ function DisplaySummaryReport($context)
 
 function RunDistributedDeployEngine([string] $environmentFile, [string] $ENV_SETTINGS, [ScriptBlock] $FarmInitialize, [ScriptBlock] $ServerInitialize, [ScriptBlock] $ServerCore, [ScriptBlock] $ServerFinalize, [ScriptBlock] $FarmFinalize)
 {
+	Write-Progress -Activity "Sprinkler" -Status "Reading configuration" -Id 42
     $context = CreateAndLoadContext $environmentFile $ENV_SETTINGS
+	Write-Progress -Activity $context.ScriptName -Status "Setting up" -Id 42 -PercentComplete 1
     OpenLog $context
 
     trap {
+		Write-Progress -Activity $context.ScriptName -Status "Failed" -Id 42 -Completed
 		#TODO revise failure handling
 		SetMyStatus $context "FAILED"
 		DisplaySummaryReport $context
         CloseLogOnError $context
+		Write-Progress -Completed
         break #terminate script
     }
-
     # Now everything is logged
     LoadConfiguration $context
+	Write-Progress -Activity $context.ScriptName -Status "Setting up" -Id 42 -PercentComplete 2
 	ValidateConfiguration $context
-
+	Write-Progress -Activity $context.ScriptName -Status "Initializing" -CurrentOperation "Waiting for all server to be ready" -Id 42 -PercentComplete 3
+	# wait all servers are ready
     Transition-To-BetaState $context
-
     $context.Succeeded = $true
-
     if ($context.IAmTheMaster) {
+		Write-Progress -Activity $context.ScriptName -Status "Initializing" -CurrentOperation "Generating data files" -Id 42 -PercentComplete 5
 		PrepareSettingsFiles $context
+		Write-Progress -Activity $context.ScriptName -Status "Initializing" -CurrentOperation "Initializing farm" -Id 42 -PercentComplete 7
 		& $FarmInitialize $context
 	} else {
-		#HACK this works if we have a Master...
+		#HACK this works only if we have a Master...
 		$context.SettingsFile = Join-Path $context.LogDirectory -ChildPath "$env:COMPUTERNAME\$($context.TargetEnvironment)_settings.xml"
 	}
-
+	Write-Progress -Activity $context.ScriptName -Status "Running" -CurrentOperation "Waiting for all server to be ready" -Id 42 -PercentComplete 10
+	# wait Farm init finished
     Transition-To-GammaState $context
-
+	Write-Progress -Activity $context.ScriptName -Status "Running" -CurrentOperation "Initializing server" -Id 42 -PercentComplete 15
+	# parallel run
     & $ServerInitialize $context
+	Write-Progress -Activity $context.ScriptName -Status "Running" -CurrentOperation "Acting on server" -Id 42 -PercentComplete 20
     & $ServerCore $context
+	Write-Progress -Activity $context.ScriptName -Status "Finalizing" -CurrentOperation "Finalizing server" -Id 42 -PercentComplete 70
     & $ServerFinalize $context
-
+	# wait all server completed the Core
+	Write-Progress -Activity $context.ScriptName -Status "Finalizing" -CurrentOperation "Waiting for all server to complete" -Id 42 -PercentComplete 80
     Transition-To-DeltaState $context
-
 	if ($context.IAmTheMaster) {
+		Write-Progress -Activity $context.ScriptName -Status "Finalizing" -CurrentOperation "Finalizing farm" -Id 42 -PercentComplete 90
 		& $FarmFinalize $context
+		Write-Progress -Activity $context.ScriptName -Status "Finalizing" -CurrentOperation "Removing temporary files" -Id 42 -PercentComplete 95
 		RemoveSettingsFiles $context
 	}
-
+	Write-Progress -Activity $context.ScriptName -Status "Finalizing" -CurrentOperation "Waiting for all server to complete" -Id 42 -PercentComplete 96
     Transition-To-EpsilonState $context
-
+	Write-Progress -Activity $context.ScriptName -Status "Finalizing" -CurrentOperation "Generating final report" -Id 42 -PercentComplete 99
 	DisplaySummaryReport $context
 	
     CloseLog $context
+	Write-Progress -Activity $context.ScriptName -Status "Done" -Id 42 -PercentComplete 100
+	Write-Progress -Activity $context.ScriptName -Status "Done" -Id 42 -Completed
 }
 
 
@@ -174,27 +193,22 @@ function RunSimpleDeployEngine([string] $environmentFile, [string] $ENV_SETTINGS
         CloseLogOnError $context
         break #terminate script
     }
-
     # Now everything is logged
     LoadConfiguration $context
 	ValidateConfiguration $context
-
     PrepareSettingsFiles $context
-    
     $context.Succeeded = $false
 
     & $DeployCore $context
 
     RemoveSettingsFiles $context
-
 	DisplaySummaryReport $context
-
     CloseLog $context
 }
 
 ### DEBUG ONLY
-#RunDistributedDeployEngine "C:\temp\dummy.env" "LOCAL" {param($context) Write-Output "$($context.TargetEnvironment) FarmInitialize"} {param($context) Write-Output "$($context.TargetEnvironment) ServerInitialize"} {param($context) Write-Output "$($context.TargetEnvironment) ServerCore"} {param($context) Write-Output "$($context.TargetEnvironment) ServerFinalize"} {param($context) Write-Output "$($context.TargetEnvironment) FarmFinalize"}
-#RunSimpleDeployEngine "C:\temp\dummy.env" "LOCAL" {param($context) Write-Output "$($context.TargetEnvironment) DeployCore"}
+#RunDistributedDeployEngine "C:\Users\giuliov\Desktop\distributed\Config\dummy.env" "LOCAL" {param($context) Write-Output "$($context.TargetEnvironment) FarmInitialize"} {param($context) Write-Output "$($context.TargetEnvironment) ServerInitialize"} {param($context) Write-Output "$($context.TargetEnvironment) ServerCore"} {param($context) Write-Output "$($context.TargetEnvironment) ServerFinalize"} {param($context) Write-Output "$($context.TargetEnvironment) FarmFinalize"}
+#RunSimpleDeployEngine "C:\Users\giuliov\Desktop\distributed\Config\dummy.env" "LOCAL" {param($context) Write-Output "$($context.TargetEnvironment) DeployCore"}
 
 
 #EOF#
