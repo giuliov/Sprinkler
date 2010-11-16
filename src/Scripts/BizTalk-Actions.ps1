@@ -208,13 +208,26 @@ function DeleteRulesAndVocabularies($context)
 
 function DeleteRulesAndVocabularies_Core($context)
 {
-    $dd = New-Object Microsoft.BizTalk.RuleEngineExtensions.RuleSetDeploymentDriver
+	$dd = New-Object Microsoft.BizTalk.RuleEngineExtensions.RuleSetDeploymentDriver
     $rs = $dd.GetRuleStore()
         
     #HACK: hardcoded values
     $stdRules = "ESB.*"
     $stdVocab = "ESB.*","Common Sets","Common Values","Functions","Predicates"
     
+	## Rule undeploy round
+    $dd.GetDeployedRuleSets() | where {
+        $name = $_.Name
+        $all = $true
+        $stdRules | %{ $all = $all -and $name -notlike $_ }
+        $all
+    } | foreach {
+		$fullname = "$($_.Name) $($_.MajorRevision).$($_.MinorRevision)"
+        $dd.Undeploy($_)
+        Write-Output "Rule $fullname undeployed"
+	}
+	
+	## Rule delete round
     # 0 = Filter.All
     $rs.GetRuleSets(0) | where {
         $name = $_.Name
@@ -222,20 +235,21 @@ function DeleteRulesAndVocabularies_Core($context)
         $stdRules | %{ $all = $all -and $name -notlike $_ }
         $all
     } | foreach {
-        $dd.Undeploy($_)
-        Write-Output "Rule $name undeployed"
+		$fullname = "$($_.Name) $($_.MajorRevision).$($_.MinorRevision)"
         $rs.Remove($_)
-        Write-Output "Rule $name deleted"
+        Write-Output "Rule $fullname deleted"
     }
     
+	## Vocabulary delete round
     $rs.GetVocabularies(0) | where {
         $name = $_.Name
         $all = $true
         $stdVocab | %{ $all = $all -and $name -notlike $_ }
         $all
     } | foreach {
+		$fullname = "$($_.Name) $($_.MajorRevision).$($_.MinorRevision)"
         $rs.Remove($_)
-        Write-Output "Vocabulary $name deleted"
+        Write-Output "Vocabulary $fullname deleted"
     }
 }
 

@@ -5,6 +5,8 @@ function Get-ContentNoLock([string] $path)
 	try {
 		$f = New-Object System.IO.FileStream($path,[System.IO.FileMode]::Open,[System.IO.FileAccess]::Read,[System.IO.FileShare]::ReadWrite)
 	} catch {
+		# this error is hidden
+		$Error.RemoveAt(0)
 		return ""
 	}
 	$buf = New-Object byte[] 32
